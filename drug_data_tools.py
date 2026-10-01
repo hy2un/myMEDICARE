@@ -1,5 +1,4 @@
-from pathlib import Path
-
+From pathlib import Path
 import pandas as pd
 
 
@@ -7,34 +6,23 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 # =========================================================
-# 데이터 불러오기
+# 의약품 / 성분 데이터 불러오기
 # =========================================================
 def load_data():
+    """의약품 데이터와 성분 사전 CSV를 불러온다."""
 
-    drug_path = (
-        BASE_DIR
-        / "drug_data.csv"
-    )
-
-    ingredient_path = (
-        BASE_DIR
-        / "ingredient_data.csv"
-    )
-
+    drug_path = BASE_DIR / "drug_data.csv"
+    ingredient_path = BASE_DIR / "ingredient_data.csv"
 
     if not drug_path.exists():
-
         raise FileNotFoundError(
             "drug_data.csv 파일이 없습니다."
         )
 
-
     if not ingredient_path.exists():
-
         raise FileNotFoundError(
             "ingredient_data.csv 파일이 없습니다."
         )
-
 
     drug_data = pd.read_csv(
         drug_path
@@ -44,55 +32,6 @@ def load_data():
         ingredient_path
     )
 
-
-    # 필요한 열 확인
-    required_drug_cols = {
-        "제품명",
-        "제조사",
-        "카테고리",
-        "성분",
-    }
-
-    required_ingredient_cols = {
-        "성분명",
-        "분류",
-        "설명",
-    }
-
-
-    if not required_drug_cols.issubset(
-        drug_data.columns
-    ):
-
-        missing = (
-            required_drug_cols
-            - set(drug_data.columns)
-        )
-
-        raise ValueError(
-            "drug_data.csv에 "
-            f"필요한 열이 없습니다: {missing}"
-        )
-
-
-    if not required_ingredient_cols.issubset(
-        ingredient_data.columns
-    ):
-
-        missing = (
-            required_ingredient_cols
-            - set(
-                ingredient_data.columns
-            )
-        )
-
-        raise ValueError(
-            "ingredient_data.csv에 "
-            f"필요한 열이 없습니다: {missing}"
-        )
-
-
-    # 문자열 공백 정리
     for col in [
         "제품명",
         "제조사",
@@ -106,7 +45,6 @@ def load_data():
             .str.strip()
         )
 
-
     for col in [
         "성분명",
         "분류",
@@ -119,11 +57,106 @@ def load_data():
             .str.strip()
         )
 
-
     return (
         drug_data,
         ingredient_data,
     )
+
+
+# =========================================================
+# 질병 / 증상 데이터 불러오기
+# =========================================================
+def load_condition_data():
+    """질병·증상 선택용 CSV를 불러온다."""
+
+    condition_path = (
+        BASE_DIR
+        / "condition_data.csv"
+    )
+
+    if not condition_path.exists():
+
+        raise FileNotFoundError(
+            "condition_data.csv 파일이 없습니다."
+        )
+
+    condition_data = pd.read_csv(
+        condition_path
+    )
+
+    for col in [
+        "질병명",
+        "분류",
+        "검색어",
+    ]:
+
+        condition_data[col] = (
+            condition_data[col]
+            .astype(str)
+            .str.strip()
+        )
+
+    return condition_data
+
+
+# =========================================================
+# 질병 / 증상 검색
+# =========================================================
+def search_conditions(
+    condition_data,
+    keyword,
+):
+
+    """
+    질병명, 분류, 관련 검색어를 이용해
+    질병이나 증상을 검색한다.
+    """
+
+    keyword = keyword.strip()
+
+    if not keyword:
+
+        return pd.DataFrame()
+
+
+    mask = (
+
+        condition_data[
+            "질병명"
+        ].str.contains(
+            keyword,
+            case=False,
+            na=False,
+            regex=False,
+        )
+
+        |
+
+        condition_data[
+            "분류"
+        ].str.contains(
+            keyword,
+            case=False,
+            na=False,
+            regex=False,
+        )
+
+        |
+
+        condition_data[
+            "검색어"
+        ].str.contains(
+            keyword,
+            case=False,
+            na=False,
+            regex=False,
+        )
+    )
+
+
+    return condition_data[
+        mask
+    ].copy()
 
 
 # =========================================================
@@ -133,7 +166,13 @@ def split_ingredients(
     ingredient_text
 ):
 
+    """
+    | 로 구분된 성분 문자열을
+    리스트로 바꾼다.
+    """
+
     return [
+
         ingredient.strip()
 
         for ingredient
@@ -146,7 +185,7 @@ def split_ingredients(
 
 
 # =========================================================
-# 선택한 약
+# 선택한 약 추출
 # =========================================================
 def get_selected_drugs(
     drug_data,
@@ -154,11 +193,13 @@ def get_selected_drugs(
 ):
 
     return drug_data[
+
         drug_data[
             "제품명"
         ].isin(
             selected_names
         )
+
     ].copy()
 
 
@@ -220,6 +261,11 @@ def search_drugs(
     drug_data,
     keyword,
 ):
+
+    """
+    제품명, 제조사, 약 종류,
+    성분으로 의약품을 검색한다.
+    """
 
     keyword = keyword.strip()
 
@@ -288,6 +334,11 @@ def search_ingredient(
     drug_data,
     keyword,
 ):
+
+    """
+    성분명 또는 분류를 검색하고
+    해당 성분을 포함한 제품도 찾는다.
+    """
 
     keyword = keyword.strip()
 
@@ -359,8 +410,11 @@ def search_ingredient(
 
 
         included_products.append(
+
             ", ".join(products)
+
             if products
+
             else "-"
         )
 
@@ -381,7 +435,7 @@ def search_ingredient(
 
 
 # =========================================================
-# 약 종류 필터
+# 약 종류별 필터
 # =========================================================
 def filter_drugs(
     drug_data,
@@ -389,8 +443,11 @@ def filter_drugs(
 ):
 
     return drug_data[
+
         drug_data[
             "카테고리"
         ]
+
         == category
+
     ].copy()
