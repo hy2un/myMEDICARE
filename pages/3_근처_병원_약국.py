@@ -1,233 +1,198 @@
-import streamlit as st
 import pandas as pd
 import requests
+import streamlit as st
 
 
-st.title(
-    "📍 근처 병원·약국"
-)
+st.title("📍 근처 병원·약국")
 
 st.caption(
-    "주소를 기준으로 주변 병원 또는 "
-    "약국을 찾고 지도에 표시합니다."
+    "주소를 기준으로 주변 병원·의원 또는 약국을 검색합니다."
 )
 
 
-# =========================================================
-# Kakao API Key
-# =========================================================
-def get_api_key():
+# ==========================================
+# 1. 카카오 API 키 불러오기
+# ==========================================
 
+def get_key():
     try:
-
-        return st.secrets[
-            "KAKAO_REST_API_KEY"
-        ]
-
-    except Exception:
-
-        return None
+        return st.secrets.get("KAKAO_REST_API_KEY", "")
+    except (FileNotFoundError, KeyError):
+        return ""
 
 
-# =========================================================
-# Kakao API Header
-# =========================================================
-def kakao_headers(
-    api_key
-):
+# ==========================================
+# 2. 카카오 API 요청
+# ==========================================
 
-    return {
-        "Authorization":
-            f"KakaoAK {api_key}"
-    }
-
-
-# =========================================================
-# 주소 → 좌표
-# =========================================================
-def address_to_coordinates(
-    address,
-    api_key,
-):
+def get_kakao(endpoint, params, key):
 
     url = (
-        "https://dapi.kakao.com/"
-        "v2/local/search/address.json"
+        "https://dapi.kakao.com/v2/local/search/"
+        f"{endpoint}.json"
     )
-
 
     response = requests.get(
         url,
-        headers=kakao_headers(
-            api_key
-        ),
-        params={
-            "query": address
+        headers={
+            "Authorization": f"KakaoAK {key}"
         },
-        timeout=10,
+        params=params,
+        timeout=12,
     )
 
+    if not response.ok:
 
-    response.raise_for_status()
+        try:
+            message = response.json().get(
+                "msg",
+                "카카오 API 설정을 확인하세요."
+            )
+        except ValueError:
+            message = "카카오 API 설정을 확인하세요."
 
-
-    documents = (
-        response.json()
-        .get(
-            "documents",
-            [],
+        raise RuntimeError(
+            f"카카오 API 오류 {response.status_code}: {message}"
         )
+
+    return response.json()
+
+
+# ==========================================
+# 3. 동물병원인지 확인
+# ==========================================
+
+def is_animal_hospital(place):
+
+    name = place.get("place_name", "")
+    category = place.get("category_name", "")
+
+    combined = name + " " + category
+
+    animal_keywords = [
+        "동물병원",
+        "반려동물병원",
+        "동물의료",
+        "수의",
+    ]
+
+    return any(
+        word in combined
+        for word in animal_keywords
     )
 
 
-    if not documents:
+# ==========================================
+# 4. 사람 병원 또는 약국 검색
+# ==========================================
 
-        return None
+def find_places(x, y, kind, radius, key):
 
+    if kind == "병원·의원":
+        category_code = "HP8"
+    else:
+        category_code = "PM9"
 
-    longitude = float(
-        documents[0]["x"]
-    )
+    found = {}
 
-    latitude = float(
-        documents[0]["y"]
-    )
+    for page in range(1, 4):
 
-
-    return (
-        longitude,
-        latitude,
-    )
-
-
-# =========================================================
-# 주변 병원 / 약국 검색
-# =========================================================
-def search_nearby(
-    longitude,
-    latitude,
-    category_code,
-    radius_meter,
-    api_key,
-):
-
-    url = (
-        "https://dapi.kakao.com/"
-        "v2/local/search/category.json"
-    )
-
-
-    response = requests.get(
-        url,
-        headers=kakao_headers(
-            api_key
-        ),
-        params={
-            "category_group_code":
-                category_code,
-
-            "x":
-                longitude,
-
-            "y":
-                latitude,
-
-            "radius":
-                radius_meter,
-
-            "sort":
-                "distance",
-
-            "size":
-                15,
-        },
-        timeout=10,
-    )
-
-
-    response.raise_for_status()
-
-
-    return (
-        response.json()
-        .get(
-            "documents",
-            [],
+        result = get_kakao(
+            "category",
+            {
+                "category_group_code": category_code,
+                "x": x,
+                "y": y,
+                "radius": radius,
+                "sort": "distance",
+                "size": 15,
+                "page": page,
+            },
+            key,
         )
+
+        for place in result.get("documents", []):
+
+            # 사람 병원 검색에서는 동물병원 제외
+            if (
+                kind == "병원·의원"
+                and is_animal_hospital(place)
+            ):
+                continue
+
+            place_id = (
+                place.get("id")
+                or place.get("place_name")
+            )
+
+            found[place_id] = place
+
+        if result.get("meta", {}).get("is_end", True):
+            break
+
+    return sorted(
+        found.values(),
+        key=lambda p: int(p.get("distance") or 0),
     )
 
 
-# =========================================================
-# API Key 확인
-# =========================================================
-api_key = get_api_key()
+# ==========================================
+# 5. API 키 확인
+# ==========================================
 
+api_key = get_key()
 
 if not api_key:
 
     st.warning(
-        "Kakao REST API 키가 "
-        "아직 등록되지 않았습니다."
+        "카카오 REST API 키가 등록되지 않았습니다."
     )
 
     st.code(
-        'KAKAO_REST_API_KEY = '
-        '"여기에_REST_API_KEY_입력"'
-    )
-
-    st.caption(
-        "Streamlit Cloud의 "
-        "Settings → Secrets에 "
-        "등록해 주세요."
+        'KAKAO_REST_API_KEY = "REST_API_KEY"',
+        language="toml",
     )
 
     st.stop()
 
 
-# =========================================================
-# 검색 UI
-# =========================================================
-address = st.text_input(
-    "기준 주소",
-    placeholder=(
-        "예: 대전광역시 "
-        "서구 둔산로 100"
-    ),
-)
+# ==========================================
+# 6. 검색 조건 입력
+# ==========================================
+
+with st.form("human_hospital_form"):
+
+    address = st.text_input(
+        "검색 기준 주소",
+        placeholder="예: 대전광역시 서구 둔산로 100",
+    )
+
+    kind = st.radio(
+        "찾을 장소",
+        [
+            "병원·의원",
+            "약국",
+        ],
+        horizontal=True,
+    )
+
+    radius_km = st.selectbox(
+        "검색 반경",
+        [1, 2, 3, 5, 10],
+        index=2,
+    )
+
+    submitted = st.form_submit_button(
+        "주변 검색",
+        type="primary",
+    )
 
 
-place_type = st.radio(
-    "찾을 장소",
-    [
-        "병원",
-        "약국",
-    ],
-    horizontal=True,
-)
+# ==========================================
+# 7. 검색 실행
+# ==========================================
 
-
-radius_km = st.selectbox(
-    "검색 반경",
-    [
-        1,
-        2,
-        3,
-        5,
-        10,
-    ],
-    index=2,
-)
-
-
-# =========================================================
-# 검색 실행
-# =========================================================
-if st.button(
-    "주변 검색",
-    type="primary",
-    width="stretch",
-):
-
+if submitted:
 
     if not address.strip():
 
@@ -235,179 +200,139 @@ if st.button(
             "주소를 입력해 주세요."
         )
 
-        st.stop()
+    else:
 
+        try:
 
-    try:
-
-        center = (
-            address_to_coordinates(
-                address,
+            address_result = get_kakao(
+                "address",
+                {
+                    "query": address.strip()
+                },
                 api_key,
             )
-        )
 
-
-        if center is None:
-
-            st.info(
-                "주소를 찾지 못했습니다. "
-                "도로명 주소를 "
-                "다시 확인해 주세요."
+            locations = address_result.get(
+                "documents", []
             )
 
-            st.stop()
+            if not locations:
 
+                st.warning(
+                    "주소를 찾지 못했습니다. "
+                    "도로명 주소를 입력해 주세요."
+                )
 
-        longitude, latitude = (
-            center
-        )
+                st.session_state.pop(
+                    "human_place_results",
+                    None,
+                )
 
+            else:
 
-        # 병원 HP8
-        # 약국 PM9
-        category_code = (
-            "HP8"
-            if place_type == "병원"
-            else "PM9"
-        )
+                x = float(locations[0]["x"])
+                y = float(locations[0]["y"])
 
+                places = find_places(
+                    x,
+                    y,
+                    kind,
+                    radius_km * 1000,
+                    api_key,
+                )
 
-        places = search_nearby(
-            longitude,
-            latitude,
-            category_code,
-            radius_km * 1000,
-            api_key,
-        )
+                rows = []
 
+                for place in places:
 
-        if not places:
+                    rows.append(
+                        {
+                            "이름": place.get(
+                                "place_name", ""
+                            ),
+                            "거리(m)": int(
+                                place.get("distance") or 0
+                            ),
+                            "전화": place.get(
+                                "phone", ""
+                            ),
+                            "주소": (
+                                place.get("road_address_name")
+                                or place.get("address_name", "")
+                            ),
+                            "상세정보": place.get(
+                                "place_url", ""
+                            ),
+                            "lat": float(place["y"]),
+                            "lon": float(place["x"]),
+                        }
+                    )
 
-            st.info(
-                "선택한 반경에서 "
-                "검색 결과가 없습니다."
-            )
+                st.session_state[
+                    "human_place_results"
+                ] = rows
 
-            st.stop()
+        except (
+            requests.RequestException,
+            RuntimeError,
+            ValueError,
+        ) as error:
 
-
-        rows = []
-
-
-        for place in places:
-
-            rows.append(
-                {
-                    "이름":
-                        place.get(
-                            "place_name",
-                            "",
-                        ),
-
-                    "거리(m)":
-                        place.get(
-                            "distance",
-                            "",
-                        ),
-
-                    "전화":
-                        place.get(
-                            "phone",
-                            "",
-                        ),
-
-                    "주소":
-                        (
-                            place.get(
-                                "road_address_name"
-                            )
-                            or
-                            place.get(
-                                "address_name",
-                                "",
-                            )
-                        ),
-
-                    "카카오맵":
-                        place.get(
-                            "place_url",
-                            "",
-                        ),
-
-                    "lat":
-                        float(
-                            place["y"]
-                        ),
-
-                    "lon":
-                        float(
-                            place["x"]
-                        ),
-                }
+            st.error(
+                f"검색 중 오류가 발생했습니다: {error}"
             )
 
 
-        result = pd.DataFrame(
-            rows
+# ==========================================
+# 8. 검색 결과 출력
+# ==========================================
+
+saved = st.session_state.get(
+    "human_place_results"
+)
+
+if saved is not None:
+
+    if not saved:
+
+        st.info(
+            "검색 결과가 없습니다. "
+            "주소나 검색 반경을 변경해 보세요."
         )
 
+    else:
+
+        df = pd.DataFrame(saved)
 
         st.success(
-            f"{len(result)}곳을 "
-            "찾았습니다."
+            f"{len(df)}곳을 찾았습니다."
         )
 
-
-        # -------------------------------------------------
-        # 검색 결과
-        # -------------------------------------------------
         st.dataframe(
-            result[
+            df[
                 [
                     "이름",
                     "거리(m)",
                     "전화",
                     "주소",
-                    "카카오맵",
+                    "상세정보",
                 ]
             ],
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
-
             column_config={
-                "카카오맵":
-                    st.column_config.LinkColumn(
-                        "카카오맵"
-                    )
+                "상세정보": st.column_config.LinkColumn(
+                    "카카오맵 열기"
+                )
             },
         )
 
-
-        # -------------------------------------------------
-        # 지도
-        # -------------------------------------------------
-        st.subheader(
-            "지도"
-        )
-
-
         st.map(
-            result,
-            latitude="lat",
-            longitude="lon",
-            size=80,
-            width="stretch",
+            df[["lat", "lon"]]
         )
 
-
-    except requests.RequestException as error:
-
-        st.error(
-            "Kakao API 요청 중 "
-            "오류가 발생했습니다."
-        )
-
-        st.code(
-            str(error)
+        st.caption(
+            "동물병원은 명칭과 업종 정보를 기준으로 "
+            "검색 결과에서 제외했습니다. "
+            "지도 등록 정보에 따라 일부 예외가 있을 수 있습니다."
         )
