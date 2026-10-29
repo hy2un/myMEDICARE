@@ -1,3 +1,5 @@
-streamlit
+Streamlit>=1.40
 pandas
 requests
+pydeck
+openai>=1.50
