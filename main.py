@@ -1,9 +1,9 @@
 from pathlib import Path
+import sys
+import types
 
 import pandas as pd
 import streamlit as st
-
-from site_theme import apply_style
 
 from drug_data_tools import load_data
 from drug_data_tools import load_condition_data
@@ -25,13 +25,165 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+# ==========================================
+# 2. 공통 디자인
+# site_theme.py 파일 없이 main.py에서 처리
+# ==========================================
+
+def apply_style():
+
+    st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --brand: #177a69;
+    --ink: #1d3340;
+    --line: #dfeae6;
+}
+
+html, body,
+[data-testid="stApp"],
+[data-testid="stSidebar"] {
+    font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+}
+
+.stApp {
+    background: #fafcfb;
+    color: var(--ink);
+}
+
+[data-testid="stHeader"] {
+    background: transparent;
+}
+
+[data-testid="stMainBlockContainer"] {
+    max-width: 1160px;
+    padding-top: 1.5rem;
+}
+
+[data-testid="stSidebar"] {
+    background: #ffffff;
+    border-right: 1px solid var(--line);
+}
+
+[data-testid="stSidebarNav"] a {
+    border-radius: 12px;
+    margin: 3px 5px;
+}
+
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background: #e9f5f0;
+    color: var(--brand);
+}
+
+h1, h2, h3 {
+    color: var(--ink);
+    letter-spacing: -0.045em;
+}
+
+.stButton button {
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.stButton button[kind="primary"] {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: white;
+}
+
+.stButton button[kind="primary"]:hover {
+    background: #0b6052;
+    border-color: #0b6052;
+    color: white;
+}
+
+[data-testid="stTextInput"] input {
+    border-radius: 12px;
+}
+
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 19px;
+}
+
+[data-testid="stDataFrame"] {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+[data-testid="stMetric"] {
+    background: #edf7f2;
+    border-radius: 14px;
+    padding: 10px 14px;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: 12px 12px 0 0;
+    font-weight: 700;
+    padding: 12px 18px;
+}
+
+.stTabs [aria-selected="true"] {
+    background: #e9f6f0;
+    color: var(--brand);
+}
+
+/* 메인 그림 배너 */
+
+.st-key-home_hero {
+    background: linear-gradient(
+        115deg,
+        #e9f5ee,
+        #f7f9f2
+    );
+    border: 1px solid #dcebe1;
+    border-radius: 23px;
+    padding: 22px 27px;
+    margin-bottom: 18px;
+}
+
+.st-key-home_hero h1 {
+    color: #147864;
+}
+
+.st-key-home_hero img {
+    max-height: 220px;
+    object-fit: contain;
+}
+
+@media (max-width: 700px) {
+    .st-key-home_hero {
+        padding: 16px;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ==========================================
+# 3. 다른 페이지에서도 디자인 함수 사용
+# 별도의 site_theme.py 파일 불필요
+# ==========================================
+
+theme_module = types.ModuleType("site_theme")
+theme_module.apply_style = apply_style
+sys.modules["site_theme"] = theme_module
+
 apply_style()
 
 ROOT = Path(__file__).resolve().parent
 
 
 # ==========================================
-# 2. 메인 홈페이지
+# 4. 메인 홈페이지
 # ==========================================
 
 def home_page():
@@ -52,7 +204,7 @@ def home_page():
 
 
     # ======================================
-    # 3. 홈페이지 디자인 배너
+    # 홈페이지 그림 배너
     # ======================================
 
     with st.container(key="home_hero"):
@@ -68,6 +220,7 @@ def home_page():
             )
 
         with right:
+
             picture = ROOT / "hero_characters.png"
 
             if picture.is_file():
@@ -80,7 +233,7 @@ def home_page():
 
 
     # ======================================
-    # 4. 기존 세 가지 탭
+    # 기존 3개 탭
     # ======================================
 
     tab_drug, tab_compare, tab_condition = st.tabs(
@@ -93,7 +246,7 @@ def home_page():
 
 
     # ======================================
-    # 첫 번째 탭: 나의 약
+    # 나의 약
     # ======================================
 
     with tab_drug:
@@ -108,19 +261,14 @@ def home_page():
 
         if keyword.strip():
 
-            result = search_drugs(
-                drugs,
-                keyword,
-            )
+            result = search_drugs(drugs, keyword)
 
             if result.empty:
                 st.info("검색 결과가 없습니다.")
 
             else:
                 st.dataframe(
-                    result[
-                        ["제품명", "제조사", "카테고리"]
-                    ],
+                    result[["제품명", "제조사", "카테고리"]],
                     use_container_width=True,
                     hide_index=True,
                 )
@@ -138,11 +286,8 @@ def home_page():
                 ):
 
                     if new_drug not in st.session_state.my_drugs:
-                        st.session_state.my_drugs.append(
-                            new_drug
-                        )
+                        st.session_state.my_drugs.append(new_drug)
                         st.rerun()
-
                     else:
                         st.info("이미 등록된 약입니다.")
 
@@ -157,12 +302,7 @@ def home_page():
 
             st.dataframe(
                 selected[
-                    [
-                        "제품명",
-                        "제조사",
-                        "카테고리",
-                        "성분",
-                    ]
+                    ["제품명", "제조사", "카테고리", "성분"]
                 ],
                 use_container_width=True,
                 hide_index=True,
@@ -177,20 +317,12 @@ def home_page():
             c1, c2 = st.columns(2)
 
             with c1:
-                if st.button(
-                    "선택한 약 삭제",
-                    key="remove_drug",
-                ):
-                    st.session_state.my_drugs.remove(
-                        delete
-                    )
+                if st.button("선택한 약 삭제", key="remove_drug"):
+                    st.session_state.my_drugs.remove(delete)
                     st.rerun()
 
             with c2:
-                if st.button(
-                    "전체 삭제",
-                    key="clear_drugs",
-                ):
+                if st.button("전체 삭제", key="clear_drugs"):
                     st.session_state.my_drugs = []
                     st.rerun()
 
@@ -203,7 +335,7 @@ def home_page():
 
 
     # ======================================
-    # 두 번째 탭: 성분 분석
+    # 성분 분석
     # ======================================
 
     with tab_compare:
@@ -212,25 +344,17 @@ def home_page():
 
         names = st.multiselect(
             "비교할 의약품 선택 (2~5개)",
-            sorted(
-                drugs["제품명"].dropna().unique().tolist()
-            ),
+            sorted(drugs["제품명"].dropna().unique().tolist()),
             max_selections=5,
             key="compare_drugs",
         )
 
         if len(names) < 2:
-
-            st.info(
-                "비교할 약을 두 개 이상 선택해 주세요."
-            )
+            st.info("비교할 약을 두 개 이상 선택해 주세요.")
 
         else:
 
-            selected = get_selected_drugs(
-                drugs,
-                names,
-            )
+            selected = get_selected_drugs(drugs, names)
 
             duplicates, ingredient_map = find_duplicates(
                 selected
@@ -272,38 +396,26 @@ def home_page():
             per_drug = {}
 
             for _, row in selected.iterrows():
-
                 per_drug[row["제품명"]] = set(
-                    split_ingredients(
-                        row["성분"]
-                    )
+                    split_ingredients(row["성분"])
                 )
 
             rows = []
 
             for ingredient in sorted(ingredient_map):
 
-                item = {
-                    "성분명": ingredient
-                }
+                item = {"성분명": ingredient}
 
                 for name in names:
                     item[name] = (
                         "✓"
-                        if ingredient in per_drug.get(
-                            name, set()
-                        )
+                        if ingredient in per_drug.get(name, set())
                         else ""
                     )
 
                 rows.append(item)
 
-            only_duplicates = st.checkbox(
-                "중복 성분만 보기",
-                key="only_duplicates",
-            )
-
-            if only_duplicates:
+            if st.checkbox("중복 성분만 보기"):
                 rows = [
                     row
                     for row in rows
@@ -328,7 +440,7 @@ def home_page():
 
 
     # ======================================
-    # 세 번째 탭: 나의 질병
+    # 나의 질병
     # ======================================
 
     with tab_condition:
@@ -354,9 +466,7 @@ def home_page():
             else:
 
                 st.dataframe(
-                    result[
-                        ["질병명", "분류"]
-                    ],
+                    result[["질병명", "분류"]],
                     hide_index=True,
                     use_container_width=True,
                 )
@@ -374,15 +484,10 @@ def home_page():
                 ):
 
                     if name not in st.session_state.my_conditions:
-                        st.session_state.my_conditions.append(
-                            name
-                        )
+                        st.session_state.my_conditions.append(name)
                         st.rerun()
-
                     else:
-                        st.info(
-                            "이미 추가된 항목입니다."
-                        )
+                        st.info("이미 추가된 항목입니다.")
 
         st.markdown("#### 기록된 질병·증상")
 
@@ -395,9 +500,7 @@ def home_page():
             ]
 
             st.dataframe(
-                selected[
-                    ["질병명", "분류"]
-                ],
+                selected[["질병명", "분류"]],
                 hide_index=True,
                 use_container_width=True,
             )
@@ -411,18 +514,14 @@ def home_page():
             c1, c2 = st.columns(2)
 
             with c1:
-
                 if st.button(
                     "선택 항목 삭제",
                     key="remove_condition",
                 ):
-                    st.session_state.my_conditions.remove(
-                        delete
-                    )
+                    st.session_state.my_conditions.remove(delete)
                     st.rerun()
 
             with c2:
-
                 if st.button(
                     "전체 삭제",
                     key="clear_conditions",
@@ -431,9 +530,7 @@ def home_page():
                     st.rerun()
 
         else:
-            st.info(
-                "기록된 질병·증상이 없습니다."
-            )
+            st.info("기록된 질병·증상이 없습니다.")
 
         st.caption(
             "질병·증상 기록은 진단 기능이 아닙니다."
@@ -444,7 +541,6 @@ def home_page():
 # 5. 전체 페이지 등록
 # ==========================================
 
-# 메인 홈페이지
 home = st.Page(
     home_page,
     title="MyMedi Care",
@@ -452,35 +548,30 @@ home = st.Page(
     default=True,
 )
 
-# 성분 사전
 ingredient_page = st.Page(
     "pages/1_성분_사전.py",
     title="성분 사전",
     icon="📘",
 )
 
-# 약 종류
 category_page = st.Page(
     "pages/2_약_종류.py",
     title="약 종류",
     icon="🗂️",
 )
 
-# 근처 병원·약국
 nearby_page = st.Page(
     "pages/3_근처_병원_약국.py",
     title="근처 병원·약국",
     icon="📍",
 )
 
-# 동물 건강
 animal_page = st.Page(
     "pages/4_동물_건강.py",
     title="동물 건강",
     icon="🐾",
 )
 
-# 증상 AI 상담 - 새로 추가
 ai_page = st.Page(
     "pages/5_증상_AI_상담.py",
     title="증상 AI 상담",
