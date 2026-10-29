@@ -212,7 +212,7 @@ def home_page():
         left, right = st.columns([1.25, 1])
 
         with left:
-            st.title("MyMedi Care")
+            st.title("My MediCare")
             st.subheader("건강한 오늘을 함께해요")
             st.caption(
                 "의약품 성분과 건강 기록을 "
