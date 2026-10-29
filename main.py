@@ -19,7 +19,7 @@ from drug_data_tools import split_ingredients
 # ==========================================
 
 st.set_page_config(
-    page_title="MyMedi Care",
+    page_title="My MediCare",
     page_icon="💊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -543,7 +543,7 @@ def home_page():
 
 home = st.Page(
     home_page,
-    title="MyMedi Care",
+    title="My MediCare",
     icon="💊",
     default=True,
 )
