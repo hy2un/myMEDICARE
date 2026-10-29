@@ -3,17 +3,19 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from site_theme import apply_style
+
 from drug_data_tools import load_data
 from drug_data_tools import load_condition_data
-from drug_data_tools import get_selected_drugs
-from drug_data_tools import find_duplicates
 from drug_data_tools import search_drugs
 from drug_data_tools import search_conditions
+from drug_data_tools import get_selected_drugs
+from drug_data_tools import find_duplicates
 from drug_data_tools import split_ingredients
 
 
 # ==========================================
-# 1. 기본 설정
+# 1. 앱 기본 설정
 # ==========================================
 
 st.set_page_config(
@@ -23,322 +25,138 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-BASE_DIR = Path(__file__).resolve().parent
+apply_style()
+
+ROOT = Path(__file__).resolve().parent
 
 
 # ==========================================
-# 2. 디자인 설정
-# ==========================================
-
-st.markdown(
-    """
-<style>
-.stApp {
-    background: #fbfcfb;
-    color: #1b3040;
-}
-
-[data-testid="stHeader"] {
-    background: transparent;
-}
-
-[data-testid="stMainBlockContainer"] {
-    max-width: 1150px;
-    padding-top: 1.5rem;
-    padding-bottom: 3rem;
-}
-
-[data-testid="stSidebar"] {
-    background: #ffffff;
-    border-right: 1px solid #e8efea;
-}
-
-[data-testid="stSidebarNav"] a {
-    border-radius: 12px;
-    margin: 3px 4px;
-}
-
-[data-testid="stSidebarNav"] a[aria-current="page"] {
-    background: #eaf5ef;
-    color: #126f5b;
-}
-
-/* 상단 그림 배너 */
-
-.st-key-home_hero {
-    background: linear-gradient(
-        110deg,
-        #f1f8f3 0%,
-        #f7faf4 55%,
-        #eaf5ef 100%
-    );
-
-    border: 1px solid #e6f0e9;
-    border-radius: 24px;
-
-    padding: 24px 30px 10px;
-    margin-bottom: 17px;
-
-    overflow: hidden;
-}
-
-.st-key-home_hero h1 {
-    color: #137a65;
-    font-size: clamp(2.1rem, 3.2vw, 3.05rem);
-    font-weight: 850;
-    letter-spacing: -0.045em;
-    margin-bottom: 5px;
-}
-
-.st-key-home_hero h3 {
-    color: #1b3340;
-    font-size: clamp(1.15rem, 1.75vw, 1.55rem);
-    letter-spacing: -0.03em;
-    margin-top: 5px;
-}
-
-.st-key-home_hero [data-testid="stCaptionContainer"] {
-    color: #537066;
-    font-size: 0.95rem;
-}
-
-.st-key-home_hero img {
-    width: 100%;
-    object-fit: contain;
-}
-
-/* 기존 기능 탭 */
-
-.stTabs [data-baseweb="tab-list"] {
-    gap: 9px;
-    border-bottom: 1px solid #e2ece6;
-}
-
-.stTabs [data-baseweb="tab"] {
-    border-radius: 12px 12px 0 0;
-    padding: 11px 19px;
-    font-weight: 700;
-}
-
-.stTabs [aria-selected="true"] {
-    color: #0d7a65 !important;
-    background: #edf7f1 !important;
-}
-
-/* 버튼 */
-
-.stButton button {
-    border-radius: 11px;
-}
-
-.stButton button[kind="primary"] {
-    background: #16836b;
-    border-color: #16836b;
-}
-
-.stButton button[kind="primary"]:hover {
-    background: #106751;
-    border-color: #106751;
-}
-
-/* 검색창 */
-
-[data-testid="stTextInput"] input {
-    border-radius: 11px;
-}
-
-/* 데이터 표 */
-
-[data-testid="stDataFrame"] {
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-/* 모바일 화면 */
-
-@media (max-width: 720px) {
-    .st-key-home_hero {
-        padding: 18px 18px 10px;
-    }
-
-    .st-key-home_hero h1 {
-        font-size: 2rem;
-    }
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-
-# ==========================================
-# 3. 메인 페이지
+# 2. 메인 홈페이지
 # ==========================================
 
 def home_page():
 
-    # 데이터 불러오기
     try:
-        drug_data, _ = load_data()
-        condition_data = load_condition_data()
+        drugs, _ = load_data()
+        conditions = load_condition_data()
 
-    except Exception as error:
-        st.error("CSV 데이터 파일을 불러오지 못했습니다.")
-        st.code(str(error))
+    except (FileNotFoundError, ValueError, KeyError) as error:
+        st.error(f"CSV 파일을 확인해 주세요: {error}")
         st.stop()
 
-    # 사용자 정보 초기화
     if "my_drugs" not in st.session_state:
         st.session_state.my_drugs = []
 
     if "my_conditions" not in st.session_state:
         st.session_state.my_conditions = []
 
+
     # ======================================
-    # 상단 그림 디자인
+    # 3. 홈페이지 디자인 배너
     # ======================================
 
     with st.container(key="home_hero"):
 
-        left, right = st.columns(
-            [1.05, 1],
-            gap="medium",
-        )
+        left, right = st.columns([1.25, 1])
 
         with left:
-
             st.title("MyMedi Care")
-
-            st.markdown(
-                "### 건강한 오늘을 함께해요"
-            )
-
+            st.subheader("건강한 오늘을 함께해요")
             st.caption(
-                "나의 약과 건강 기록, "
-                "그리고 반려동물까지."
+                "의약품 성분과 건강 기록을 "
+                "한곳에서 확인하세요."
             )
 
         with right:
-
-            picture = (
-                BASE_DIR
-                / "hero_characters.png"
-            )
+            picture = ROOT / "hero_characters.png"
 
             if picture.is_file():
-
                 st.image(
                     str(picture),
                     use_container_width=True,
                 )
-
             else:
+                st.markdown("### 💊 🐶 🐱")
 
-                st.caption(
-                    "assets/hero_characters.png "
-                    "이미지를 추가해 주세요."
-                )
 
     # ======================================
-    # 기존의 3개 탭만 유지
+    # 4. 기존 세 가지 탭
     # ======================================
 
-    tab_my_drugs, tab_compare, tab_conditions = st.tabs(
+    tab_drug, tab_compare, tab_condition = st.tabs(
         [
-            "나의 약",
-            "성분 분석",
-            "나의 질병",
+            "💊 나의 약",
+            "🧪 성분 분석",
+            "📋 나의 질병",
         ]
     )
+
 
     # ======================================
     # 첫 번째 탭: 나의 약
     # ======================================
 
-    with tab_my_drugs:
+    with tab_drug:
 
-        st.subheader("💊 나의 약")
-
-        st.caption(
-            "약을 검색해 추가하거나 삭제할 수 있습니다."
-        )
+        st.subheader("나의 약 관리")
 
         keyword = st.text_input(
-            "약 이름 검색",
-            placeholder="예: 타이레놀, 게보린, 판콜",
-            key="my_drug_search_keyword",
+            "약 이름·성분 검색",
+            placeholder="예: 타이레놀, 아세트아미노펜",
+            key="my_drug_search",
         )
 
         if keyword.strip():
 
             result = search_drugs(
-                drug_data,
+                drugs,
                 keyword,
             )
 
             if result.empty:
-
                 st.info("검색 결과가 없습니다.")
 
             else:
-
                 st.dataframe(
                     result[
-                        [
-                            "제품명",
-                            "제조사",
-                            "카테고리",
-                        ]
+                        ["제품명", "제조사", "카테고리"]
                     ],
                     use_container_width=True,
                     hide_index=True,
                 )
 
-                name = st.selectbox(
+                new_drug = st.selectbox(
                     "추가할 약 선택",
                     result["제품명"].tolist(),
-                    key="selected_search_drug",
+                    key="add_drug_name",
                 )
 
                 if st.button(
                     "나의 약에 추가",
                     type="primary",
-                    key="add_my_drug_button",
+                    key="add_drug",
                 ):
 
-                    if name in st.session_state.my_drugs:
-
-                        st.info(
-                            "이미 추가된 제품입니다."
-                        )
-
-                    else:
-
+                    if new_drug not in st.session_state.my_drugs:
                         st.session_state.my_drugs.append(
-                            name
+                            new_drug
                         )
-
                         st.rerun()
 
-        else:
-
-            st.info(
-                "약 이름을 입력하면 검색할 수 있습니다."
-            )
-
-        st.divider()
+                    else:
+                        st.info("이미 등록된 약입니다.")
 
         st.markdown("#### 현재 나의 약")
 
         if st.session_state.my_drugs:
 
-            chosen = get_selected_drugs(
-                drug_data,
+            selected = get_selected_drugs(
+                drugs,
                 st.session_state.my_drugs,
             )
 
             st.dataframe(
-                chosen[
+                selected[
                     [
                         "제품명",
                         "제조사",
@@ -350,49 +168,39 @@ def home_page():
                 hide_index=True,
             )
 
-            remove_name = st.selectbox(
-                "삭제할 약 선택",
+            delete = st.selectbox(
+                "삭제할 약",
                 st.session_state.my_drugs,
-                key="remove_drug_select",
+                key="remove_drug_name",
             )
 
-            a, b = st.columns(2)
+            c1, c2 = st.columns(2)
 
-            with a:
-
+            with c1:
                 if st.button(
                     "선택한 약 삭제",
-                    key="remove_drug_button",
-                    use_container_width=True,
+                    key="remove_drug",
                 ):
-
                     st.session_state.my_drugs.remove(
-                        remove_name
+                        delete
                     )
-
                     st.rerun()
 
-            with b:
-
+            with c2:
                 if st.button(
-                    "나의 약 전체 삭제",
-                    key="clear_my_drugs_button",
-                    use_container_width=True,
+                    "전체 삭제",
+                    key="clear_drugs",
                 ):
-
                     st.session_state.my_drugs = []
-
                     st.rerun()
 
         else:
-
-            st.write(
-                "아직 추가된 약이 없습니다."
-            )
+            st.info("추가한 약이 없습니다.")
 
         st.caption(
-            "나의 약은 현재 앱 세션에만 임시 저장됩니다."
+            "저장 정보는 현재 Streamlit 세션에만 유지됩니다."
         )
+
 
     # ======================================
     # 두 번째 탭: 성분 분석
@@ -400,318 +208,243 @@ def home_page():
 
     with tab_compare:
 
-        st.subheader("🧪 성분 분석")
-
-        st.caption(
-            "약 2~5개를 선택해 공통 성분과 "
-            "제품별 성분을 비교합니다."
-        )
+        st.subheader("성분 비교")
 
         names = st.multiselect(
-            "비교할 약 선택",
+            "비교할 의약품 선택 (2~5개)",
             sorted(
-                drug_data[
-                    "제품명"
-                ].dropna().unique().tolist()
+                drugs["제품명"].dropna().unique().tolist()
             ),
             max_selections=5,
-            placeholder="의약품 2~5개를 선택하세요",
-            key="compare_drug_names",
+            key="compare_drugs",
         )
 
-        st.caption(
-            f"현재 {len(names)}개 선택 / 최대 5개"
-        )
+        if len(names) < 2:
 
-        if names:
+            st.info(
+                "비교할 약을 두 개 이상 선택해 주세요."
+            )
 
-            chosen = get_selected_drugs(
-                drug_data,
+        else:
+
+            selected = get_selected_drugs(
+                drugs,
                 names,
             )
 
-            st.dataframe(
-                chosen[
-                    [
-                        "제품명",
-                        "제조사",
-                        "카테고리",
-                    ]
-                ],
-                use_container_width=True,
-                hide_index=True,
+            duplicates, ingredient_map = find_duplicates(
+                selected
             )
 
-        if st.button(
-            "성분 비교하기",
-            type="primary",
-            key="compare_ingredients_button",
-        ):
+            u1, u2, u3 = st.columns(3)
 
-            if len(names) < 2:
+            u1.metric("비교 제품", len(names))
+            u2.metric("고유 성분", len(ingredient_map))
+            u3.metric("중복 성분", len(duplicates))
 
-                st.warning(
-                    "약을 2개 이상 선택해 주세요."
+            st.subheader("중복 성분")
+
+            if duplicates:
+
+                duplicate_rows = []
+
+                for ingredient, products in sorted(
+                    duplicates.items()
+                ):
+                    duplicate_rows.append(
+                        {
+                            "성분명": ingredient,
+                            "포함 제품": ", ".join(products),
+                        }
+                    )
+
+                st.dataframe(
+                    pd.DataFrame(duplicate_rows),
+                    hide_index=True,
+                    use_container_width=True,
                 )
 
             else:
-
-                chosen = get_selected_drugs(
-                    drug_data,
-                    names,
+                st.success(
+                    "성분명 기준으로 일치하는 성분이 없습니다."
                 )
 
-                duplicates, ingredient_map = find_duplicates(
-                    chosen
-                )
+            per_drug = {}
 
-                all_ingredients = sorted(
-                    ingredient_map.keys()
-                )
+            for _, row in selected.iterrows():
 
-                x, y, z = st.columns(3)
-
-                x.metric(
-                    "비교 제품 수",
-                    len(names),
-                )
-
-                y.metric(
-                    "고유 성분 수",
-                    len(all_ingredients),
-                )
-
-                z.metric(
-                    "중복 성분 수",
-                    len(duplicates),
-                )
-
-                st.markdown("#### 중복 성분")
-
-                if duplicates:
-
-                    rows = [
-                        {
-                            "중복 성분": ingredient,
-                            "포함 제품 수": len(products),
-                            "포함 제품": ", ".join(products),
-                        }
-                        for ingredient, products
-                        in sorted(duplicates.items())
-                    ]
-
-                    st.dataframe(
-                        pd.DataFrame(rows),
-                        use_container_width=True,
-                        hide_index=True,
+                per_drug[row["제품명"]] = set(
+                    split_ingredients(
+                        row["성분"]
                     )
+                )
 
-                else:
+            rows = []
 
-                    st.success(
-                        "성분명 기준으로 중복된 성분이 "
-                        "발견되지 않았습니다."
-                    )
+            for ingredient in sorted(ingredient_map):
 
-                sets = {
-                    row["제품명"]: set(
-                        split_ingredients(
-                            row["성분"]
-                        )
-                    )
-                    for _, row in chosen.iterrows()
+                item = {
+                    "성분명": ingredient
                 }
 
-                rows = []
-
-                for ingredient in all_ingredients:
-
-                    item = {
-                        "성분명": ingredient
-                    }
-
-                    for name in names:
-
-                        item[name] = (
-                            "✓"
-                            if ingredient in sets.get(
-                                name,
-                                set(),
-                            )
-                            else ""
+                for name in names:
+                    item[name] = (
+                        "✓"
+                        if ingredient in per_drug.get(
+                            name, set()
                         )
+                        else ""
+                    )
 
-                    rows.append(item)
+                rows.append(item)
 
-                st.markdown(
-                    "#### 제품별 성분 비교표"
-                )
+            only_duplicates = st.checkbox(
+                "중복 성분만 보기",
+                key="only_duplicates",
+            )
 
-                st.dataframe(
-                    pd.DataFrame(
-                        rows,
-                        columns=["성분명"] + names,
-                    ),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+            if only_duplicates:
+                rows = [
+                    row
+                    for row in rows
+                    if row["성분명"] in duplicates
+                ]
 
-                st.info(
-                    "같은 성분의 포함 여부만 비교하며, "
-                    "실제 병용 안전성을 판단하지 않습니다."
-                )
+            st.subheader("제품별 성분 비교표")
+
+            st.dataframe(
+                pd.DataFrame(
+                    rows,
+                    columns=["성분명"] + names,
+                ),
+                hide_index=True,
+                use_container_width=True,
+            )
+
+            st.caption(
+                "성분명의 중복을 보여줄 뿐 "
+                "병용 안전성을 판단하지 않습니다."
+            )
+
 
     # ======================================
     # 세 번째 탭: 나의 질병
     # ======================================
 
-    with tab_conditions:
+    with tab_condition:
 
-        st.subheader("📋 나의 질병")
-
-        st.caption(
-            "질병이나 증상을 검색하고 "
-            "목록에 추가할 수 있습니다."
-        )
+        st.subheader("나의 질병·증상")
 
         keyword = st.text_input(
             "질병·증상 검색",
-            placeholder="예: 감기, 독감, 비염",
-            key="condition_search_keyword",
+            placeholder="예: 감기, 비염",
+            key="my_condition_search",
         )
 
         if keyword.strip():
 
             result = search_conditions(
-                condition_data,
+                conditions,
                 keyword,
             )
 
             if result.empty:
-
                 st.info("검색 결과가 없습니다.")
 
             else:
 
                 st.dataframe(
                     result[
-                        [
-                            "질병명",
-                            "분류",
-                        ]
+                        ["질병명", "분류"]
                     ],
-                    use_container_width=True,
                     hide_index=True,
+                    use_container_width=True,
                 )
 
                 name = st.selectbox(
-                    "추가할 질병·증상 선택",
+                    "추가할 항목",
                     result["질병명"].tolist(),
-                    key="selected_condition",
+                    key="add_condition_name",
                 )
 
                 if st.button(
                     "나의 질병에 추가",
                     type="primary",
-                    key="add_condition_button",
+                    key="add_condition",
                 ):
 
-                    if name in st.session_state.my_conditions:
+                    if name not in st.session_state.my_conditions:
+                        st.session_state.my_conditions.append(
+                            name
+                        )
+                        st.rerun()
 
+                    else:
                         st.info(
                             "이미 추가된 항목입니다."
                         )
 
-                    else:
-
-                        st.session_state.my_conditions.append(
-                            name
-                        )
-
-                        st.rerun()
-
-        else:
-
-            st.info(
-                f"현재 {len(condition_data)}개 "
-                "질병·증상 항목에서 검색할 수 있습니다."
-            )
-
-        st.divider()
-
-        st.markdown("#### 현재 나의 질병")
+        st.markdown("#### 기록된 질병·증상")
 
         if st.session_state.my_conditions:
 
-            chosen = condition_data[
-                condition_data[
-                    "질병명"
-                ].isin(
+            selected = conditions[
+                conditions["질병명"].isin(
                     st.session_state.my_conditions
                 )
             ]
 
             st.dataframe(
-                chosen[
-                    [
-                        "질병명",
-                        "분류",
-                    ]
+                selected[
+                    ["질병명", "분류"]
                 ],
-                use_container_width=True,
                 hide_index=True,
+                use_container_width=True,
             )
 
-            remove_name = st.selectbox(
-                "삭제할 항목 선택",
+            delete = st.selectbox(
+                "삭제할 항목",
                 st.session_state.my_conditions,
-                key="remove_condition_select",
+                key="remove_condition_name",
             )
 
-            a, b = st.columns(2)
+            c1, c2 = st.columns(2)
 
-            with a:
+            with c1:
 
                 if st.button(
-                    "선택한 항목 삭제",
-                    key="remove_condition_button",
-                    use_container_width=True,
+                    "선택 항목 삭제",
+                    key="remove_condition",
                 ):
-
                     st.session_state.my_conditions.remove(
-                        remove_name
+                        delete
                     )
-
                     st.rerun()
 
-            with b:
+            with c2:
 
                 if st.button(
-                    "나의 질병 전체 삭제",
-                    key="clear_condition_button",
-                    use_container_width=True,
+                    "전체 삭제",
+                    key="clear_conditions",
                 ):
-
                     st.session_state.my_conditions = []
-
                     st.rerun()
 
         else:
-
-            st.write(
-                "아직 추가된 질병·증상이 없습니다."
+            st.info(
+                "기록된 질병·증상이 없습니다."
             )
 
         st.caption(
-            "질병·증상 기록용 기능이며 "
-            "진단 서비스가 아닙니다."
+            "질병·증상 기록은 진단 기능이 아닙니다."
         )
 
 
 # ==========================================
-# 4. 기존 왼쪽 메뉴 유지
+# 5. 전체 페이지 등록
 # ==========================================
 
+# 메인 홈페이지
 home = st.Page(
     home_page,
     title="MyMedi Care",
@@ -719,29 +452,45 @@ home = st.Page(
     default=True,
 )
 
+# 성분 사전
 ingredient_page = st.Page(
     "pages/1_성분_사전.py",
     title="성분 사전",
     icon="📘",
 )
 
+# 약 종류
 category_page = st.Page(
     "pages/2_약_종류.py",
     title="약 종류",
     icon="🗂️",
 )
 
+# 근처 병원·약국
 nearby_page = st.Page(
     "pages/3_근처_병원_약국.py",
     title="근처 병원·약국",
     icon="📍",
 )
 
+# 동물 건강
 animal_page = st.Page(
     "pages/4_동물_건강.py",
     title="동물 건강",
     icon="🐾",
 )
+
+# 증상 AI 상담 - 새로 추가
+ai_page = st.Page(
+    "pages/5_증상_AI_상담.py",
+    title="증상 AI 상담",
+    icon="💬",
+)
+
+
+# ==========================================
+# 6. 왼쪽 메뉴 구성
+# ==========================================
 
 navigation = st.navigation(
     [
@@ -750,8 +499,14 @@ navigation = st.navigation(
         category_page,
         nearby_page,
         animal_page,
+        ai_page,
     ],
     position="sidebar",
 )
+
+
+# ==========================================
+# 7. 앱 실행
+# ==========================================
 
 navigation.run()
