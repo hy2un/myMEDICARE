@@ -222,7 +222,6 @@ def home_page():
 
             picture = (
                 BASE_DIR
-                / "assets"
                 / "hero_characters.png"
             )
 
