@@ -20,8 +20,10 @@ from drug_data_tools import (
 # 1. 앱 기본 설정
 # ==========================================
 
+APP_NAME = "My MediCare"
+
 st.set_page_config(
-    page_title="MyMedi Care",
+    page_title=APP_NAME,
     page_icon="💊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -29,7 +31,7 @@ st.set_page_config(
 
 
 # ==========================================
-# 2. 공통 스타일
+# 2. 기존 공통 디자인 유지
 # ==========================================
 
 try:
@@ -42,37 +44,36 @@ except ModuleNotFoundError as exc:
 
     def apply_style():
 
-        st.markdown(
-            """
-            <style>
-            .stApp {
-                background: #fafcfb;
-            }
+        st.markdown("""
+        <style>
 
-            .st-key-home_hero {
-                background: #eaf7ef;
-                border-radius: 22px;
-                border: 1px solid #d5eadf;
-                padding: 20px;
-            }
+        .stApp {
+            background: #fafcfb;
+        }
 
-            .stButton button {
-                border-radius: 13px;
-            }
+        .st-key-home_hero {
+            background: #eaf7ef;
+            border-radius: 22px;
+            border: 1px solid #d5eadf;
+            padding: 20px;
+        }
 
-            .stButton button[kind="primary"] {
-                background: #137d65;
-                border-color: #137d65;
-                color: white;
-            }
+        .stButton button {
+            border-radius: 13px;
+        }
 
-            .stTabs [data-baseweb="tab"] {
-                border-radius: 13px;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+        .stButton button[kind="primary"] {
+            background: #137d65;
+            border-color: #137d65;
+            color: white;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 13px;
+        }
+
+        </style>
+        """, unsafe_allow_html=True)
 
     module = types.ModuleType("site_theme")
     module.apply_style = apply_style
@@ -85,7 +86,7 @@ ROOT = Path(__file__).resolve().parent
 
 
 # ==========================================
-# 3. 메인 페이지
+# 3. 메인 홈페이지
 # ==========================================
 
 def home_page():
@@ -129,7 +130,8 @@ def home_page():
 
         with left:
 
-            st.title("MyMedi Care")
+            # 홈페이지 이름 변경
+            st.title(APP_NAME)
 
             st.subheader(
                 "건강한 오늘을 함께해요"
@@ -142,9 +144,7 @@ def home_page():
 
         with right:
 
-            picture = (
-                ROOT / "hero_characters.png"
-            )
+            picture = ROOT / "hero_characters.png"
 
             if picture.is_file():
 
@@ -177,9 +177,7 @@ def home_page():
 
         keyword = st.text_input(
             "약 이름·성분 검색",
-            placeholder=(
-                "예: 타이레놀, 아세트아미노펜"
-            ),
+            placeholder="예: 타이레놀, 아세트아미노펜",
             key="home_drug_query",
         )
 
@@ -223,10 +221,7 @@ def home_page():
                     key="home_add_drug_btn",
                 ):
 
-                    if (
-                        choice
-                        not in st.session_state.my_drugs
-                    ):
+                    if choice not in st.session_state.my_drugs:
 
                         st.session_state.my_drugs.append(
                             choice
@@ -272,29 +267,25 @@ def home_page():
 
             c1, c2 = st.columns(2)
 
-            with c1:
+            if c1.button(
+                "선택한 약 삭제",
+                key="home_remove_drug_btn",
+            ):
 
-                if st.button(
-                    "선택한 약 삭제",
-                    key="home_remove_drug_btn",
-                ):
+                st.session_state.my_drugs.remove(
+                    removal
+                )
 
-                    st.session_state.my_drugs.remove(
-                        removal
-                    )
+                st.rerun()
 
-                    st.rerun()
+            if c2.button(
+                "전체 삭제",
+                key="home_clear_drugs_btn",
+            ):
 
-            with c2:
+                st.session_state.my_drugs = []
 
-                if st.button(
-                    "전체 삭제",
-                    key="home_clear_drugs_btn",
-                ):
-
-                    st.session_state.my_drugs = []
-
-                    st.rerun()
+                st.rerun()
 
         else:
 
@@ -370,9 +361,7 @@ def home_page():
                     rows.append(
                         {
                             "중복 성분": ingredient,
-                            "포함 제품": ", ".join(
-                                products
-                            ),
+                            "포함 제품": ", ".join(products),
                         }
                     )
 
@@ -448,7 +437,7 @@ def home_page():
 
 
     # ======================================
-    # 6. 나의 질병: 355개 전체 조회
+    # 6. 나의 질병
     # ======================================
 
     with tab_disease:
@@ -459,16 +448,14 @@ def home_page():
 
         st.caption(
             f"등록된 질병·증상 전체 "
-            f"{len(conditions)}개를 "
-            "검색하거나 직접 선택할 수 있습니다."
+            f"{len(conditions)}개를 검색하거나 "
+            "직접 선택할 수 있습니다."
         )
 
         keyword = st.text_input(
             "질병명·증상·일상적인 표현 검색 "
             "(비우면 전체 보기)",
-            placeholder=(
-                "예: 감기, 당뇨, 허리디스크, 이석증"
-            ),
+            placeholder="예: 감기, 당뇨, 허리디스크, 이석증",
             key="home_dis_query",
         )
 
@@ -519,13 +506,10 @@ def home_page():
             height=340,
         )
 
-        # 여러 질병·증상 선택
         selected_names = st.multiselect(
             "나의 질병에 추가할 항목 선택 "
             "(여러 개 선택 가능)",
-            options=matches[
-                "질병명"
-            ].tolist(),
+            options=matches["질병명"].tolist(),
             key="home_dis_add_many",
         )
 
@@ -538,8 +522,7 @@ def home_page():
             if not selected_names:
 
                 st.warning(
-                    "먼저 추가할 질병·증상을 "
-                    "선택해 주세요."
+                    "먼저 추가할 질병·증상을 선택해 주세요."
                 )
 
             else:
@@ -608,8 +591,7 @@ def home_page():
 
                         st.session_state.my_conditions = [
                             name
-                            for name
-                            in st.session_state.my_conditions
+                            for name in st.session_state.my_conditions
                             if name not in delete_names
                         ]
 
@@ -645,14 +627,14 @@ def home_page():
 
 
 # ==========================================
-# 7. 전체 페이지 메뉴
+# 7. 전체 페이지 연결
 # ==========================================
 
 pages = [
 
     st.Page(
         home_page,
-        title="MyMedi Care",
+        title=APP_NAME,
         icon="💊",
         default=True,
     ),
