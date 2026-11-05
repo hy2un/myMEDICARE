@@ -1,5 +1,5 @@
-Streamlit>=1.40
-pandas
-requests
-pydeck
-google-genai
+streamlit>=1.40
+pandas>=2.0
+requests>=2.31
+pydeck>=0.9
+google-genai>=1.0
