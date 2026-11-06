@@ -1,4 +1,5 @@
-"""동물 건강: 종별 약물 정보, 주의 약물 및 동물병원 위치."""
+"""동물 건강: 동물별 약물 정보, 주의 약물 및 동물병원 위치."""
+
 from html import escape
 from pathlib import Path
 from urllib.parse import quote
@@ -8,61 +9,202 @@ import pydeck as pdk
 import requests
 import streamlit as st
 
-# 이 페이지에만 적용하는 디자인
-st.markdown("""<style>
-.stApp {background:#fbfdfc;}
-h1,h2,h3 {color:#193d34 !important;letter-spacing:-.025em;}
+# ==================================================
+# 1. 동물 건강 페이지 전용 디자인
+# ==================================================
+
+st.markdown("""
+<style>
+
+/* 전체 배경 */
+.stApp,
+[data-testid="stAppViewContainer"] {
+    background: #fbfdfb !important;
+}
+
+h1, h2, h3 {
+    color: #193d34 !important;
+    letter-spacing: -.02em;
+}
+
+/* ------------------------------------------
+   탭: 둥근 버튼 제거, 초록 글씨와 밑줄
+------------------------------------------ */
+
 .stTabs [data-baseweb="tab-list"] {
- gap:18px;border-bottom:1px solid #dcece3;
+    display: flex;
+    gap: 22px;
+    background: transparent !important;
+    border-bottom: 1px solid #d4e5da !important;
+    padding: 0;
 }
-.stTabs [data-baseweb="tab"] {
- color:#52665b !important;font-weight:700;padding:10px 3px 12px;
+
+.stTabs [data-baseweb="tab"],
+.stTabs button[role="tab"] {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 10px 3px 12px !important;
+    color: #52685c !important;
+    font-weight: 700 !important;
 }
-.stTabs [data-baseweb="tab"]:hover,
-.stTabs [aria-selected="true"] {color:#137f62 !important;}
+
+.stTabs button[role="tab"] *,
+.stTabs [data-baseweb="tab"] * {
+    color: inherit !important;
+}
+
+.stTabs button[role="tab"][aria-selected="true"],
+.stTabs button[role="tab"][aria-selected="true"] *,
+.stTabs button[role="tab"]:hover,
+.stTabs button[role="tab"]:hover * {
+    color: #137f62 !important;
+}
+
 .stTabs [data-baseweb="tab-highlight"] {
- background:#137f62 !important;height:3px !important;
- border-radius:3px !important;
+    background-color: #137f62 !important;
+    height: 3px !important;
+    border-radius: 0 !important;
 }
-.stButton > button,.stFormSubmitButton > button {
- border-radius:14px !important;font-weight:700 !important;
+
+.stTabs [data-baseweb="tab-border"] {
+    background-color: #d4e5da !important;
 }
-.stButton > button[kind="primary"],
-.stFormSubmitButton > button[kind="primary"] {
- background:#137f62 !important;border-color:#137f62 !important;
- color:white !important;
+
+.stTabs [data-baseweb="tab-panel"] {
+    padding-top: 14px;
 }
-.stButton > button[kind="primary"]:hover,
-.stFormSubmitButton > button[kind="primary"]:hover {
- background:#0f6b53 !important;border-color:#0f6b53 !important;
- color:white !important;
-}
-.stTextInput input,div[data-baseweb="select"] > div {
- border-radius:13px !important;
-}
-div[data-testid="stDataFrame"] {border-radius:14px;overflow:hidden;}
-div[data-testid="stAlert"] {border-radius:17px !important;}
+
+/* ------------------------------------------
+   안전 안내: 홈과 같은 연녹색 평면형 영역
+------------------------------------------ */
+
 .animal-safety-card {
- background:#eaf7ef;border:1px solid #d5eadf;
- border-left:5px solid #137f62;border-radius:19px;
- padding:18px 22px;margin:12px 0 19px;
+    background: #e9f6ed;
+    border: none;
+    border-left: 4px solid #137f62;
+    border-radius: 4px;
+    box-shadow: none;
+    padding: 16px 19px;
+    margin: 12px 0 18px;
 }
+
 .animal-safety-card strong {
- display:block;color:#11634e;font-size:1.05rem;margin-bottom:5px;
+    display: block;
+    color: #11654f;
+    font-size: 1.02rem;
+    margin-bottom: 5px;
 }
+
 .animal-safety-card p {
- margin:0;color:#31594b;line-height:1.7;
+    margin: 0;
+    color: #315749;
+    font-size: .96rem;
+    line-height: 1.65;
 }
+
+/* ------------------------------------------
+   모든 검색 버튼은 진한 초록색
+------------------------------------------ */
+
+.stButton > button,
+.stFormSubmitButton > button,
+div[data-testid="stButton"] button,
+div[data-testid="stFormSubmitButton"] button,
+button[data-testid="stBaseButton-primary"],
+button[data-testid="stBaseButton-secondary"] {
+    background: #147f62 !important;
+    color: #ffffff !important;
+    border: 1px solid #147f62 !important;
+    border-radius: 7px !important;
+    box-shadow: none !important;
+    font-weight: 700 !important;
+}
+
+.stButton > button:hover,
+.stFormSubmitButton > button:hover,
+div[data-testid="stButton"] button:hover,
+div[data-testid="stFormSubmitButton"] button:hover {
+    background: #0d664e !important;
+    color: #ffffff !important;
+    border-color: #0d664e !important;
+}
+
+.stButton > button:focus-visible,
+.stFormSubmitButton > button:focus-visible {
+    outline: 2px solid #8dc9aa !important;
+    outline-offset: 2px;
+    box-shadow: none !important;
+}
+
+/* ------------------------------------------
+   동물병원 검색 폼
+------------------------------------------ */
+
+div[data-testid="stForm"] {
+    background: #f3faf5;
+    border: 1px solid #dcece2;
+    border-radius: 5px !important;
+    padding: 16px 18px;
+}
+
+/* 입력창과 선택창 */
+
+.stTextInput input,
+div[data-baseweb="select"] > div {
+    background: #ffffff !important;
+    border: 1px solid #cbded3 !important;
+    border-radius: 6px !important;
+}
+
+.stTextInput input:focus {
+    border-color: #137f62 !important;
+    box-shadow: 0 0 0 1px #137f62 !important;
+}
+
+.stRadio input[type="radio"] {
+    accent-color: #137f62 !important;
+}
+
+/* ------------------------------------------
+   동물별 약물 수 표시
+------------------------------------------ */
+
 div[data-testid="stMetric"] {
- background:#f2faf5;border:1px solid #dcece3;
- border-radius:16px;padding:10px 14px;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid #dcece2 !important;
+    border-radius: 0 !important;
+    padding: 5px 2px 10px;
+    box-shadow: none !important;
 }
-</style>""", unsafe_allow_html=True)
+
+/* 표와 시스템 메시지 */
+
+div[data-testid="stDataFrame"] {
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+div[data-testid="stAlert"] {
+    border-radius: 6px !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
+# ==================================================
+# 2. 연녹색 안내 영역
+# ==================================================
+
 def green_card(title, detail):
+    """홈 화면 색감을 유지한 평면형 안내 영역."""
+
     st.markdown(
         '<div class="animal-safety-card">'
         f'<strong>{escape(str(title))}</strong>'
@@ -72,60 +214,122 @@ def green_card(title, detail):
     )
 
 
+# ==================================================
+# 3. 동물 약과 성분 데이터
+# ==================================================
+
 def load_animal_data():
+
     drug_path = ROOT / "animal_drug_data.csv"
     ingredient_path = ROOT / "animal_ingredient_data.csv"
+
     if not drug_path.exists() or not ingredient_path.exists():
-        st.error("동물 약물 CSV가 없습니다. GitHub 최상위 폴더를 확인해 주세요.")
-        st.stop()
-    try:
-        return (
-            pd.read_csv(drug_path, encoding="utf-8-sig").fillna(""),
-            pd.read_csv(ingredient_path, encoding="utf-8-sig").fillna(""),
+
+        st.error(
+            "동물 약물 CSV가 없습니다. "
+            "GitHub 최상위 폴더를 확인해 주세요."
         )
-    except (OSError, UnicodeError, pd.errors.ParserError) as err:
+        st.stop()
+
+    try:
+
+        drug_data = pd.read_csv(
+            drug_path,
+            encoding="utf-8-sig",
+        ).fillna("")
+
+        ingredient_data = pd.read_csv(
+            ingredient_path,
+            encoding="utf-8-sig",
+        ).fillna("")
+
+        return drug_data, ingredient_data
+
+    except (
+        OSError,
+        UnicodeError,
+        pd.errors.ParserError,
+    ) as err:
+
         st.error(f"동물 약 데이터 읽기 실패: {err}")
         st.stop()
 
 
+# ==================================================
+# 4. 약물 검색 함수
+# ==================================================
+
 def filter_rows(df, q, columns):
+
     if not q.strip():
         return df
+
     mask = df[columns].astype(str).apply(
         lambda s: s.str.contains(
-            q.strip(), case=False, regex=False, na=False
+            q.strip(),
+            case=False,
+            regex=False,
+            na=False,
         )
     ).any(axis=1)
+
     return df[mask]
 
 
+# ==================================================
+# 5. 카카오 API 연결
+# ==================================================
+
 def kakao_key():
+
     try:
-        return st.secrets.get("KAKAO_REST_API_KEY", "")
+        return st.secrets.get(
+            "KAKAO_REST_API_KEY",
+            "",
+        )
+
     except (KeyError, FileNotFoundError):
         return ""
 
 
 def kakao_search(endpoint, params, key):
-    url = f"https://dapi.kakao.com/v2/local/search/{endpoint}.json"
+
+    url = (
+        "https://dapi.kakao.com/v2/local/search/"
+        f"{endpoint}.json"
+    )
+
     response = requests.get(
         url,
         params=params,
-        headers={"Authorization": f"KakaoAK {key}"},
+        headers={
+            "Authorization": f"KakaoAK {key}"
+        },
         timeout=12,
     )
+
     response.raise_for_status()
+
     return response.json()
 
 
+# ==================================================
+# 6. 주소 또는 장소명 검색
+# ==================================================
+
 def locate(query, key):
-    """주소 검색 후 결과가 없으면 장소명 키워드 검색."""
+    """주소를 먼저 검색하고 없으면 장소명으로 검색."""
+
     items = kakao_search(
-        "address", {"query": query}, key
+        "address",
+        {"query": query},
+        key,
     ).get("documents", [])
+
     candidates = []
 
     for item in items[:8]:
+
         candidates.append({
             "label": item.get("address_name") or query,
             "lon": float(item["x"]),
@@ -133,17 +337,25 @@ def locate(query, key):
         })
 
     if not candidates:
+
         items = kakao_search(
             "keyword",
-            {"query": query, "size": 15},
+            {
+                "query": query,
+                "size": 15,
+            },
             key,
         ).get("documents", [])
+
         for item in items:
+
             name = item.get("place_name", "")
+
             address = (
                 item.get("road_address_name")
                 or item.get("address_name", "")
             )
+
             candidates.append({
                 "label": f"{name} — {address}",
                 "lon": float(item["x"]),
@@ -153,9 +365,16 @@ def locate(query, key):
     return candidates
 
 
+# ==================================================
+# 7. 주변 동물병원 검색
+# ==================================================
+
 def nearby_vets(lon, lat, radius_km, key):
+
     found = {}
+
     for page in range(1, 4):
+
         answer = kakao_search(
             "keyword",
             {
@@ -169,28 +388,47 @@ def nearby_vets(lon, lat, radius_km, key):
             },
             key,
         )
+
         for place in answer.get("documents", []):
+
             info = (
                 place.get("place_name", "")
                 + " "
                 + place.get("category_name", "")
             )
-            if "동물병원" not in info and "수의" not in info:
-                continue
-            found[
-                place.get("id") or place.get("place_name")
-            ] = place
 
-        if answer.get("meta", {}).get("is_end", True):
+            if (
+                "동물병원" not in info
+                and "수의" not in info
+            ):
+                continue
+
+            place_id = (
+                place.get("id")
+                or place.get("place_name")
+            )
+
+            found[place_id] = place
+
+        if answer.get(
+            "meta", {}
+        ).get("is_end", True):
             break
 
     return sorted(
         found.values(),
-        key=lambda item: int(item.get("distance") or 0),
+        key=lambda p: int(
+            p.get("distance") or 0
+        ),
     )
 
 
+# ==================================================
+# 8. 작은 지도 핀
+# ==================================================
+
 def pin(color):
+
     svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" '
         'width="36" height="48" viewBox="0 0 36 48">'
@@ -201,8 +439,12 @@ def pin(color):
         '<circle cx="18" cy="18" r="7" fill="white"/>'
         '</svg>'
     )
+
     return {
-        "url": "data:image/svg+xml;charset=utf-8," + quote(svg),
+        "url": (
+            "data:image/svg+xml;charset=utf-8,"
+            + quote(svg)
+        ),
         "width": 36,
         "height": 48,
         "anchorX": 18,
@@ -210,20 +452,33 @@ def pin(color):
     }
 
 
+# ==================================================
+# 9. 동물병원 지도 출력
+# ==================================================
+
 def show_map(df, center):
-    points = df[["이름", "lat", "lon"]].copy()
+
+    points = df[
+        ["이름", "lat", "lon"]
+    ].copy()
+
     points["icon"] = [
-        pin("#ea5455") for _ in range(len(points))
+        pin("#ea5455")
+        for _ in range(len(points))
     ]
+
     base = pd.DataFrame([{
         "이름": "검색 기준 위치",
         "lat": center["lat"],
         "lon": center["lon"],
         "icon": pin("#147f66"),
     }])
+
     all_points = pd.concat(
-        [points, base], ignore_index=True
+        [points, base],
+        ignore_index=True,
     )
+
     deck = pdk.Deck(
         map_style=(
             "https://basemaps.cartocdn.com/"
@@ -246,9 +501,16 @@ def show_map(df, center):
                 pickable=True,
             ),
         ],
-        tooltip={"text": "{이름}"},
+        tooltip={
+            "text": "{이름}"
+        },
     )
-    st.pydeck_chart(deck, use_container_width=True)
+
+    st.pydeck_chart(
+        deck,
+        use_container_width=True,
+    )
+
     st.caption(
         "초록색 핀: 검색 기준 위치 / "
         "빨간색 핀: 동물병원. "
@@ -256,11 +518,17 @@ def show_map(df, center):
     )
 
 
+# ==================================================
+# 10. 페이지 시작
+# ==================================================
+
 st.title("🐾 동물 건강")
+
 st.caption(
     "반려동물 약물과 성분, 동물종별 주의 약물, "
     "동물병원 위치를 확인하세요."
 )
+
 green_card(
     "💚 반려동물 약물 안전 안내",
     "사람용 약을 반려동물에게 임의로 투여하지 마세요. "
@@ -270,6 +538,11 @@ green_card(
 
 animal_drugs, animal_ingredients = load_animal_data()
 
+
+# ==================================================
+# 11. 탭 구성
+# ==================================================
+
 tab_drug, tab_ing, tab_risk, tab_vet = st.tabs([
     "💊 동물 약",
     "🧪 동물 약 성분",
@@ -277,20 +550,48 @@ tab_drug, tab_ing, tab_risk, tab_vet = st.tabs([
     "📍 동물병원 위치",
 ])
 
-# 동물별 약물 검색
+
+# ==================================================
+# 12. 동물 약 탭
+# ==================================================
+
 with tab_drug:
+
     st.subheader("동물 약 찾아보기")
+
     species_text = animal_drugs["대상동물"].astype(str)
-    dog_mask = species_text.str.contains("개", regex=False)
-    cat_mask = species_text.str.contains("고양이", regex=False)
+
+    dog_mask = species_text.str.contains(
+        "개",
+        regex=False,
+    )
+
+    cat_mask = species_text.str.contains(
+        "고양이",
+        regex=False,
+    )
+
     unconfirmed_mask = ~(dog_mask | cat_mask)
 
-    dog_only = int((dog_mask & ~cat_mask).sum())
-    cat_only = int((~dog_mask & cat_mask).sum())
-    both = int((dog_mask & cat_mask).sum())
-    unconfirmed = int(unconfirmed_mask.sum())
+    dog_only = int(
+        (dog_mask & ~cat_mask).sum()
+    )
 
+    cat_only = int(
+        (~dog_mask & cat_mask).sum()
+    )
+
+    both = int(
+        (dog_mask & cat_mask).sum()
+    )
+
+    unconfirmed = int(
+        unconfirmed_mask.sum()
+    )
+
+    # 동물별 분류 수치
     c1, c2, c3, c4 = st.columns(4)
+
     c1.metric("강아지만 명시", dog_only)
     c2.metric("고양이만 명시", cat_only)
     c3.metric("두 동물 모두 명시", both)
@@ -306,15 +607,22 @@ with tab_drug:
 
     species = st.radio(
         "대상 동물 구분",
-        ["전체", "강아지", "고양이", "대상 동물 미확정"],
+        [
+            "전체",
+            "강아지",
+            "고양이",
+            "대상 동물 미확정",
+        ],
         horizontal=True,
         key="animal_drug_species",
     )
+
     q = st.text_input(
         "동물 약·성분 검색",
         placeholder="예: 플루랄라너, 외부기생충",
         key="animal_drug_q",
     )
+
     category = st.selectbox(
         "동물 약 종류",
         ["전체 보기"] + sorted(
@@ -324,37 +632,60 @@ with tab_drug:
     )
 
     result = animal_drugs.copy()
+
     if species == "강아지":
         result = result.loc[dog_mask].copy()
+
     elif species == "고양이":
         result = result.loc[cat_mask].copy()
+
     elif species == "대상 동물 미확정":
         result = result.loc[unconfirmed_mask].copy()
 
     if category != "전체 보기":
-        result = result[result["분류"] == category]
+        result = result[
+            result["분류"] == category
+        ]
 
     result = filter_rows(
-        result, q,
-        ["약물명", "분류", "주요성분", "사용영역"]
+        result,
+        q,
+        [
+            "약물명",
+            "분류",
+            "주요성분",
+            "사용영역",
+        ],
     )
 
     st.write(
-        f"검색 결과: **{len(result)}개** / "
-        f"전체 {len(animal_drugs)}개"
+        f"검색 결과: **{len(result)}개** "
+        f"/ 전체 {len(animal_drugs)}개"
     )
 
     if result.empty:
-        st.info("해당 조건의 동물 약 정보가 없습니다.")
+
+        st.info(
+            "해당 조건의 동물 약 정보가 없습니다."
+        )
+
     else:
+
         st.dataframe(
             result[
-                ["약물명", "분류", "주요성분", "대상동물", "사용영역"]
+                [
+                    "약물명",
+                    "분류",
+                    "주요성분",
+                    "대상동물",
+                    "사용영역",
+                ]
             ],
             hide_index=True,
             use_container_width=True,
             height=310,
         )
+
         idx = st.selectbox(
             "자세히 볼 약물 선택",
             result.index.tolist(),
@@ -363,46 +694,73 @@ with tab_drug:
             ),
             key="animal_drug_detail",
         )
+
         item = result.loc[idx]
+
         st.write(
             f"**약물:** {item['약물명']} / "
             f"**대상 동물:** {item['대상동물']}"
         )
-        st.write(f"**사용 영역:** {item['사용영역']}")
+
+        st.write(
+            f"**사용 영역:** {item['사용영역']}"
+        )
+
         green_card(
             "🌿 약물 사용 시 주의사항",
             item["주의사항"],
         )
-        if "데이터형태" in result.columns:
-            st.caption(f"데이터 구분: {item['데이터형태']}")
 
-# 동물 성분 검색
+        if "데이터형태" in result.columns:
+
+            st.caption(
+                f"데이터 구분: {item['데이터형태']}"
+            )
+
+
+# ==================================================
+# 13. 동물 약 성분 탭
+# ==================================================
+
 with tab_ing:
+
     st.subheader("동물 약 성분 사전")
+
     q = st.text_input(
         "성분명·영문명·설명 검색",
         placeholder="예: Fluralaner",
         key="animal_ingredient_q",
     )
+
     result = filter_rows(
         animal_ingredients.copy(),
         q,
-        ["성분명", "영문명", "분류", "설명"],
+        [
+            "성분명",
+            "영문명",
+            "분류",
+            "설명",
+        ],
     )
+
     st.write(
-        f"조회된 성분 **{len(result)}개 / "
-        f"전체 {len(animal_ingredients)}개**"
+        f"조회된 성분 **{len(result)}개 "
+        f"/ 전체 {len(animal_ingredients)}개**"
     )
 
     if result.empty:
+
         st.info("성분 검색 결과가 없습니다.")
+
     else:
+
         st.dataframe(
             result,
             hide_index=True,
             use_container_width=True,
             height=300,
         )
+
         idx = st.selectbox(
             "자세히 볼 성분 선택",
             result.index.tolist(),
@@ -411,17 +769,25 @@ with tab_ing:
             ),
             key="animal_ingredient_detail",
         )
+
         item = result.loc[idx]
+
         st.write(
-            f"**{item['성분명']} ({item['영문명']})** — "
+            f"**{item['성분명']} "
+            f"({item['영문명']})** — "
             f"{item['설명']}"
         )
+
         green_card(
             "🌿 해당 성분의 주의사항",
             item["주의사항"],
         )
 
-# 강아지·고양이별 대표 주의 약물
+
+# ==================================================
+# 14. 강아지·고양이별 주의 약물 자료
+# ==================================================
+
 DOG_RISKS = [
     (
         "이부프로펜·나프록센 등 사람용 NSAIDs",
@@ -482,56 +848,93 @@ CAT_RISKS = [
     ),
 ]
 
+
+# ==================================================
+# 15. 강아지·고양이 주의 약물 탭
+# ==================================================
+
 with tab_risk:
-    st.subheader("동물종별 주의해야 할 약물과 제품")
+
+    st.subheader(
+        "동물종별 주의해야 할 약물과 제품"
+    )
+
     species = st.radio(
         "동물종 선택",
         ["강아지", "고양이"],
         horizontal=True,
         key="risk_species",
     )
-    info = DOG_RISKS if species == "강아지" else CAT_RISKS
+
+    info = (
+        DOG_RISKS
+        if species == "강아지"
+        else CAT_RISKS
+    )
+
     table = pd.DataFrame(
         info,
-        columns=["성분·제품", "구분", "주의 이유", "근거 자료"],
+        columns=[
+            "성분·제품",
+            "구분",
+            "주의 이유",
+            "근거 자료",
+        ],
     )
+
     st.dataframe(
         table,
         hide_index=True,
         use_container_width=True,
         column_config={
-            "근거 자료": st.column_config.LinkColumn("수의학 근거")
+            "근거 자료": st.column_config.LinkColumn(
+                "수의학 근거"
+            )
         },
     )
+
     green_card(
         "🌿 위험 약물 목록 안내",
         "대표 위험 사례만 정리했습니다. "
         "목록에 없는 약도 위험할 수 있으며 "
         "실제 투약·응급조치는 수의사가 판단합니다.",
     )
+
     st.warning(
         "의심되는 약물을 먹었거나 피부에 닿았다면 "
         "즉시 동물병원에 연락하세요. "
         "임의로 구토를 유도하지 마세요."
     )
 
-# 동물병원 검색
+
+# ==================================================
+# 16. 동물병원 위치 검색
+# ==================================================
+
 with tab_vet:
+
     st.subheader("근처 동물병원 찾기")
+
     green_card(
         "📍 위치 검색 방법",
-        "주소·장소명을 입력한 뒤 후보에서 기준 위치를 선택하세요. "
+        "주소·장소명을 입력한 뒤 후보에서 "
+        "기준 위치를 선택하세요. "
         "반경은 직선거리이며 실제 이동거리가 아닙니다.",
     )
 
     key = kakao_key()
+
     if not key:
+
         st.error(
-            "Streamlit Secrets에 KAKAO_REST_API_KEY를 "
-            "등록해 주세요."
+            "Streamlit Secrets에 "
+            "KAKAO_REST_API_KEY를 등록해 주세요."
         )
+
     else:
+
         with st.form("vet_location_form"):
+
             query = st.text_input(
                 "검색 기준 위치",
                 placeholder=(
@@ -540,53 +943,87 @@ with tab_vet:
                 ),
                 key="vet_query",
             )
+
             st.caption(
                 "장소명 예시: 국회의사당 · "
                 "서울중앙지방법원 · 서울대학교"
             )
+
             radius_km = st.selectbox(
                 "검색 반경 (km)",
                 [1, 2, 3, 5, 10],
                 index=2,
                 key="vet_radius",
             )
+
             st.caption(
                 f"반경 {radius_km}km는 기준 위치에서 "
                 f"직선거리 {radius_km * 1000:,}m 이내입니다. "
                 "이동거리가 아닙니다."
             )
+
             submit = st.form_submit_button(
                 "기준 위치 찾기",
                 type="primary",
             )
 
+        # 위치 후보 검색
         if submit:
+
             if not query.strip():
-                st.warning("주소 또는 장소명을 입력해 주세요.")
+
+                st.warning(
+                    "주소 또는 장소명을 입력해 주세요."
+                )
+
             else:
+
                 try:
-                    candidates = locate(query.strip(), key)
-                    st.session_state["vet_candidates"] = candidates
-                    st.session_state["vet_radius_choice"] = radius_km
-                    st.session_state.pop("vet_results_1103", None)
+
+                    candidates = locate(
+                        query.strip(),
+                        key,
+                    )
+
+                    st.session_state[
+                        "vet_candidates"
+                    ] = candidates
+
+                    st.session_state[
+                        "vet_radius_choice"
+                    ] = radius_km
+
+                    st.session_state.pop(
+                        "vet_results_1103",
+                        None,
+                    )
+
                     if not candidates:
+
                         st.warning(
                             "해당 위치를 찾지 못했습니다. "
                             "주소·장소명을 변경해 보세요."
                         )
+
                 except (
                     requests.RequestException,
                     ValueError,
                     KeyError,
                 ) as err:
+
                     st.error(
-                        f"위치 검색 오류: {type(err).__name__}"
+                        "위치 검색 오류: "
+                        f"{type(err).__name__}"
                     )
 
+        # 기준 위치 선택
         candidates = st.session_state.get(
-            "vet_candidates", []
+            "vet_candidates",
+            [],
         )
+
         if candidates:
+
             sel = st.selectbox(
                 "기준 위치 선택",
                 range(len(candidates)),
@@ -595,65 +1032,106 @@ with tab_vet:
                 ),
                 key="vet_location_sel",
             )
+
             if st.button(
                 "이 위치 주변 동물병원 검색",
                 type="primary",
                 key="vet_search_btn",
             ):
+
                 place = candidates[sel]
+
                 try:
+
                     raw = nearby_vets(
-                        place["lon"], place["lat"],
+                        place["lon"],
+                        place["lat"],
                         st.session_state.get(
-                            "vet_radius_choice", 3
+                            "vet_radius_choice",
+                            3,
                         ),
                         key,
                     )
-                    st.session_state["vet_center_1103"] = place
-                    st.session_state["vet_results_1103"] = [
+
+                    st.session_state[
+                        "vet_center_1103"
+                    ] = place
+
+                    st.session_state[
+                        "vet_results_1103"
+                    ] = [
                         {
-                            "이름": p.get("place_name", ""),
+                            "이름": p.get(
+                                "place_name", ""
+                            ),
                             "거리(m)": int(
                                 p.get("distance") or 0
                             ),
-                            "전화": p.get("phone", ""),
+                            "전화": p.get(
+                                "phone", ""
+                            ),
                             "주소": (
                                 p.get("road_address_name")
                                 or p.get("address_name", "")
                             ),
-                            "상세정보": p.get("place_url", ""),
+                            "상세정보": p.get(
+                                "place_url", ""
+                            ),
                             "lat": float(p["y"]),
                             "lon": float(p["x"]),
                         }
                         for p in raw
                     ]
+
                 except (
                     requests.RequestException,
                     ValueError,
                     KeyError,
                 ) as err:
+
                     st.error(
-                        f"동물병원 검색 오류: {type(err).__name__}"
+                        "동물병원 검색 오류: "
+                        f"{type(err).__name__}"
                     )
 
-        rows = st.session_state.get("vet_results_1103")
+        # 결과 표시
+        rows = st.session_state.get(
+            "vet_results_1103"
+        )
+
         if rows is not None:
+
             if not rows:
+
                 st.info(
                     "선택한 반경에서 동물병원을 "
                     "찾지 못했습니다."
                 )
+
             else:
+
                 df = pd.DataFrame(rows)
-                st.success(f"동물병원 {len(df)}곳을 찾았습니다.")
+
+                st.success(
+                    f"동물병원 {len(df)}곳을 찾았습니다."
+                )
+
                 if len(df) >= 45:
+
                     st.caption(
                         "최대 45곳까지 조회합니다. "
                         "다른 결과가 더 있을 수 있습니다."
                     )
+
                 st.dataframe(
                     df[
-                        ["이름", "거리(m)", "전화", "주소", "상세정보"]
+                        [
+                            "이름",
+                            "거리(m)",
+                            "전화",
+                            "주소",
+                            "상세정보",
+                        ]
                     ],
                     hide_index=True,
                     use_container_width=True,
@@ -664,7 +1142,10 @@ with tab_vet:
                         )
                     },
                 )
+
                 show_map(
                     df,
-                    st.session_state["vet_center_1103"],
+                    st.session_state[
+                        "vet_center_1103"
+                    ],
                 )
